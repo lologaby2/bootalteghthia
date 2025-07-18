@@ -1,7 +1,7 @@
-
 import telebot
 import os
 import random
+import time
 
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -84,4 +84,8 @@ def send_random_music(message):
     with open(file_path, "rb") as f:
         bot.send_audio(message.chat.id, f)
 
-bot.infinity_polling()
+# تأخير بسيط لتفادي التعارض في الاستضافة
+if __name__ == "__main__":
+    print("✅ جاري تشغيل البوت على Railway...")
+    time.sleep(3)
+    bot.infinity_polling()
