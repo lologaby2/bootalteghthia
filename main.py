@@ -57,27 +57,34 @@ def extract_username(link):
     except IndexError:
         return None
 
+def extract_username(link):
+    try:
+        return link.split("tiktok.com/")[1].split("?")[0].split("/")[0]
+    except:
+        return None
+
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
     full_link = message.text.strip()
-    username = extract_username(full_link)
+    new_username = extract_username(full_link)
 
-    if not username or not username.startswith("@"):
+    if not new_username or not new_username.startswith("@"):
         bot.send_message(message.chat.id, "❌ لم أتمكن من تحديد اسم القناة.")
         return
 
-    # قراءة القنوات المحفوظة
-    with open("tiktok_channels.txt", "r", encoding="utf-8") as f:
-        lines = f.read().splitlines()
+    # قراءة الروابط المحفوظة سابقًا
+    with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
+        saved_links = f.read().splitlines()
 
-    # التحقق من وجود اسم القناة مسبقًا داخل أي رابط محفوظ
-    usernames = [extract_username(line) for line in lines]
-    if username in usernames:
+    # استخراج أسماء القنوات من الروابط المحفوظة
+    saved_usernames = [extract_username(link) for link in saved_links]
+
+    if new_username in saved_usernames:
         bot.send_message(message.chat.id, "✅ هذه القناة محفوظة مسبقًا.")
         return
 
     # حفظ الرابط الكامل
-    with open("tiktok_channels.txt", "a", encoding="utf-8") as f:
+    with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
         f.write(full_link + "\n")
 
     bot.send_message(message.chat.id, "✅ تم حفظ قناة تيك توك.")
