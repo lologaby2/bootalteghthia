@@ -63,6 +63,12 @@ def extract_username(link):
     except:
         return None
 
+def extract_username(link):
+    try:
+        return link.split("tiktok.com/")[1].split("?")[0].split("/")[0]
+    except:
+        return None
+
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
     full_link = message.text.strip()
@@ -82,6 +88,12 @@ def save_tiktok_channel(message):
     if new_username in saved_usernames:
         bot.send_message(message.chat.id, "✅ هذه القناة محفوظة مسبقًا.")
         return
+
+    # حفظ الرابط الكامل
+    with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
+        f.write(full_link + "\n")
+
+    bot.send_message(message.chat.id, "✅ تم حفظ قناة تيك توك.")
 
     # حفظ الرابط الكامل
     with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
