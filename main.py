@@ -53,18 +53,6 @@ def save_music_file(message, category):
 
 def extract_username(link):
     try:
-        return link.split("tiktok.com/")[1].split("?")[0]
-    except IndexError:
-        return None
-
-def extract_username(link):
-    try:
-        return link.split("tiktok.com/")[1].split("?")[0].split("/")[0]
-    except:
-        return None
-
-def extract_username(link):
-    try:
         return link.split("tiktok.com/")[1].split("?")[0].split("/")[0]
     except:
         return None
@@ -78,24 +66,15 @@ def save_tiktok_channel(message):
         bot.send_message(message.chat.id, "❌ لم أتمكن من تحديد اسم القناة.")
         return
 
-    # قراءة الروابط المحفوظة سابقًا
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
         saved_links = f.read().splitlines()
 
-    # استخراج أسماء القنوات من الروابط المحفوظة
     saved_usernames = [extract_username(link) for link in saved_links]
 
     if new_username in saved_usernames:
         bot.send_message(message.chat.id, "✅ هذه القناة محفوظة مسبقًا.")
         return
 
-    # حفظ الرابط الكامل
-    with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
-        f.write(full_link + "\n")
-
-    bot.send_message(message.chat.id, "✅ تم حفظ قناة تيك توك.")
-
-    # حفظ الرابط الكامل
     with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
         f.write(full_link + "\n")
 
@@ -123,7 +102,6 @@ def send_random_music(message):
     with open(file_path, "rb") as f:
         bot.send_audio(message.chat.id, f)
 
-# تأخير بسيط لتفادي التعارض في الاستضافة
 if __name__ == "__main__":
     print("✅ جاري تشغيل البوت على Railway...")
     time.sleep(3)
