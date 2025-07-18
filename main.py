@@ -106,5 +106,4 @@ if __name__ == "__main__":
     print("✅ جاري تشغيل البوت على Railway...")
     time.sleep(3)
     bot.infinity_polling()
-# تعديل بسيط لجلب التحديث على ريلوي
-trigger redeploy
+
