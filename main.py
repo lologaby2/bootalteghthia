@@ -107,3 +107,14 @@ if __name__ == "__main__":
     time.sleep(3)
     bot.infinity_polling()
 
+@bot.message_handler(commands=['show_channels'])
+def show_channels(message):
+    try:
+        with open("storage/tiktok_channels.txt", "r", encoding="utf-8") as f:
+            links = f.readlines()
+        if links:
+            bot.send_message(message.chat.id, "📋 روابط القنوات:\n" + "".join(links))
+        else:
+            bot.send_message(message.chat.id, "📭 لا توجد قنوات محفوظة بعد.")
+    except FileNotFoundError:
+        bot.send_message(message.chat.id, "❌ لم يتم العثور على ملف القنوات.")
