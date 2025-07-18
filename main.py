@@ -54,10 +54,17 @@ def save_music_file(message, category):
 @bot.message_handler(func=lambda m: "tiktok.com/@" in m.text)
 def save_tiktok_channel(message):
     link = message.text.strip()
+    
+    # نقرأ كل الروابط في القائمة الحالية
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
-        if link in f.read():
-            bot.send_message(message.chat.id, "✅ هذه القناة محفوظة مسبقًا.")
-            return
+        saved_links = f.read().splitlines()
+
+    # نتحقق من وجود الرابط مسبقًا
+    if link in saved_links:
+        bot.send_message(message.chat.id, "✅ هذه القناة محفوظة مسبقًا.")
+        return
+
+    # إذا لم يكن موجودًا، نضيفه
     with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
         f.write(link + "\n")
     bot.send_message(message.chat.id, "✅ تم حفظ قناة تيك توك.")
