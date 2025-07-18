@@ -51,22 +51,35 @@ def save_music_file(message, category):
         f.write(downloaded)
     bot.send_message(message.chat.id, "✅ تم حفظ الموسيقى بنجاح.")
 
-@bot.message_handler(func=lambda m: "tiktok.com/@" in m.text)
-def save_tiktok_channel(message):
-    link = message.text.strip()
-    
-    # نقرأ كل الروابط في القائمة الحالية
-    with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
-        saved_links = f.read().splitlines()
+def extract_username(link):
+    try:
+        return link.split("tiktok.com/")[1].split("?")[0]
+    except IndexError:
+        return None
 
-    # نتحقق من وجود الرابط مسبقًا
-    if link in saved_links:
+@bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
+def save_tiktok_channel(message):
+    full_link = message.text.strip()
+    username = extract_username(full_link)
+
+    if not username or not username.startswith("@"):
+        bot.send_message(message.chat.id, "❌ لم أتمكن من تحديد اسم القناة.")
+        return
+
+    # قراءة القنوات المحفوظة
+    with open("tiktok_channels.txt", "r", encoding="utf-8") as f:
+        lines = f.read().splitlines()
+
+    # التحقق من وجود اسم القناة مسبقًا داخل أي رابط محفوظ
+    usernames = [extract_username(line) for line in lines]
+    if username in usernames:
         bot.send_message(message.chat.id, "✅ هذه القناة محفوظة مسبقًا.")
         return
 
-    # إذا لم يكن موجودًا، نضيفه
-    with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
-        f.write(link + "\n")
+    # حفظ الرابط الكامل
+    with open("tiktok_channels.txt", "a", encoding="utf-8") as f:
+        f.write(full_link + "\n")
+
     bot.send_message(message.chat.id, "✅ تم حفظ قناة تيك توك.")
 
 @bot.message_handler(func=lambda m: m.text == "🔀 موسيقى عشوائية")
