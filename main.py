@@ -44,8 +44,8 @@ def extract_audio_text(video_path):
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("📄 عرض القنوات المحفوظة")
-    markup.row("📁 عرض الفيديوهات المحفوظة")
+    markup.row("📄 عرض القنوات المحفوظة", "🎲 فيديو عشوائي")
+markup.row("📁 عرض الفيديوهات المحفوظة")
     bot.send_message(message.chat.id, "👋 أرسل رابط قناة تيك توك لحفظه أو اختر من الخيارات:", reply_markup=markup)
 
 @bot.message_handler(func=lambda message: message.text == "📄 عرض القنوات المحفوظة")
