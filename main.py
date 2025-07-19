@@ -1,12 +1,7 @@
 import telebot
 import os
-import requests
-import base64
 
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
-GITHUB_TOKEN = "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"
-REPO_NAME = "lologaby2/bootaltegthia"
-BRANCH = "main"
 FILE_PATH = "tiktok_channels.txt"
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -18,36 +13,20 @@ def extract_username(link):
     except:
         return None
 
-def upload_to_github(file_path):
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/{file_path}"
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    content_b64 = base64.b64encode(content.encode("utf-8")).decode("utf-8")
-
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
-    get_resp = requests.get(url, headers=headers)
-    sha = get_resp.json().get("sha", "")
-
-    data = {
-        "message": "update tiktok channels",
-        "content": content_b64,
-        "branch": BRANCH,
-    }
-    if sha:
-        data["sha"] = sha
-
-    put_resp = requests.put(url, headers=headers, json=data)
-    
-    # ✅ طباعة التشخيص في السجل
-    print("GitHub PUT response:", put_resp.status_code)
-    print("Response text:", put_resp.text)
-
-    return put_resp.status_code == 201 or put_resp.status_code == 200
-
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
-    markup = telebot.types.ReplyKeyboardRemove()
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("📄 عرض القنوات المحفوظة")
     bot.send_message(message.chat.id, "👋 أرسل رابط قناة تيك توك لحفظه.", reply_markup=markup)
+
+@bot.message_handler(func=lambda message: message.text == "📄 عرض القنوات المحفوظة")
+def list_channels(message):
+    with open(FILE_PATH, "r", encoding="utf-8") as f:
+        links = f.read().strip()
+    if links:
+        bot.send_message(message.chat.id, f"📋 هذه القنوات المحفوظة:\n\n{links}")
+    else:
+        bot.send_message(message.chat.id, "📭 لا توجد أي روابط محفوظة حتى الآن.")
 
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
@@ -69,11 +48,7 @@ def save_tiktok_channel(message):
     with open(FILE_PATH, "a", encoding="utf-8") as f:
         f.write(full_link + "\n")
 
-    uploaded = upload_to_github(FILE_PATH)
-    if uploaded:
-        bot.send_message(message.chat.id, "✅ تم حفظ القناة ورفعها إلى GitHub.")
-    else:
-        bot.send_message(message.chat.id, "⚠️ تم حفظ القناة لكن فشل رفعها إلى GitHub.")
+    bot.send_message(message.chat.id, "✅ تم حفظ القناة.")
 
 if __name__ == "__main__":
     print("✅ البوت يعمل...")
