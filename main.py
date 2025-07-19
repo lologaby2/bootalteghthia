@@ -3,8 +3,6 @@ import os
 import yt_dlp
 import whisper
 import random
-import requests
-import re
 
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
 CHANNELS_FILE = "tiktok_channels.txt"
@@ -77,25 +75,25 @@ def handle_random_video(message):
         bot.send_message(message.chat.id, "❌ تعذر استخراج اسم القناة.")
         return
 
-    bot.send_message(message.chat.id, f"🔍 يتم فحص قناة: {username}")
+    bot.send_message(message.chat.id, f"🔍 يتم فحص قناة: @{username}")
 
     try:
-        r = requests.get(f"https://www.tiktok.com/@{username}", headers={"User-Agent": "Mozilla/5.0"})
-        video_ids = re.findall(r'/video/(\d+)', r.text)
-        if not video_ids:
-            bot.send_message(message.chat.id, "❌ لم أجد فيديوهات.")
-            return
-        for vid in video_ids:
-            if vid in open(VIDEO_IDS_FILE).read():
-                continue
-            video_url = f"https://www.tiktok.com/@{username}/video/{vid}"
-            path, vid_id, duration, views = download_tiktok_video(video_url)
-            if 50 <= duration <= 90 and views >= 1_000_000:
-                markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-                markup.row("🎧 استخراج النص", "⬇️ تنزيل الفيديو")
-                bot.send_message(message.chat.id, f"🎥 تم اختيار الفيديو:\n{video_url}", reply_markup=markup)
-                bot.register_next_step_handler(message, lambda m: handle_action(m, path, vid_id))
-                return
+        ydl_opts = {'quiet': True, 'extract_flat': True}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.tiktok.com/@{username}", download=False)
+            entries = info.get('entries', [])
+            for entry in entries:
+                vid = entry['id']
+                if vid in open(VIDEO_IDS_FILE).read():
+                    continue
+                video_url = f"https://www.tiktok.com/@{username}/video/{vid}"
+                path, vid_id, duration, views = download_tiktok_video(video_url)
+                if 50 <= duration <= 90 and views >= 1_000_000:
+                    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+                    markup.row("🎧 استخراج النص", "⬇️ تنزيل الفيديو")
+                    bot.send_message(message.chat.id, f"🎥 تم اختيار الفيديو:\n{video_url}", reply_markup=markup)
+                    bot.register_next_step_handler(message, lambda m: handle_action(m, path, vid_id))
+                    return
         bot.send_message(message.chat.id, "⚠️ لم أجد فيديو مناسب.")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ حدث خطأ: {e}")
