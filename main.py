@@ -2,6 +2,9 @@ import telebot
 import os
 import yt_dlp
 import whisper
+import random
+import requests
+import re
 
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
 CHANNELS_FILE = "tiktok_channels.txt"
@@ -47,9 +50,7 @@ def list_channels(message):
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
         links = f.read().strip()
     if links:
-        bot.send_message(message.chat.id, f"📋 القنوات:
-
-{links}")
+        bot.send_message(message.chat.id, f"📋 القنوات:\n\n{links}")
     else:
         bot.send_message(message.chat.id, "📭 لا توجد قنوات محفوظة.")
 
@@ -58,22 +59,18 @@ def list_videos(message):
     with open(VIDEO_IDS_FILE, "r", encoding="utf-8") as f:
         vids = f.read().strip()
     if vids:
-        bot.send_message(message.chat.id, f"🎞️ الفيديوهات:
-
-{vids}")
+        bot.send_message(message.chat.id, f"🎞️ الفيديوهات:\n\n{vids}")
     else:
         bot.send_message(message.chat.id, "📭 لا توجد فيديوهات محفوظة.")
 
 @bot.message_handler(func=lambda message: message.text == "🎲 فيديو عشوائي")
 def handle_random_video(message):
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
-        import random
         links = f.read().splitlines()
     if not links:
         bot.send_message(message.chat.id, "❌ لا توجد قنوات محفوظة.")
         return
 
-    import requests, re
     chosen = random.choice(links)
     username = extract_username(chosen)
     if not username:
@@ -96,8 +93,7 @@ def handle_random_video(message):
             if 50 <= duration <= 90 and views >= 1_000_000:
                 markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
                 markup.row("🎧 استخراج النص", "⬇️ تنزيل الفيديو")
-                bot.send_message(message.chat.id, f"🎥 تم اختيار الفيديو:
-{video_url}", reply_markup=markup)
+                bot.send_message(message.chat.id, f"🎥 تم اختيار الفيديو:\n{video_url}", reply_markup=markup)
                 bot.register_next_step_handler(message, lambda m: handle_action(m, path, vid_id))
                 return
         bot.send_message(message.chat.id, "⚠️ لم أجد فيديو مناسب.")
@@ -110,8 +106,7 @@ def handle_action(message, video_path, video_id):
             bot.send_video(message.chat.id, f)
     elif message.text == "🎧 استخراج النص":
         text = extract_audio_text(video_path)
-        bot.send_message(message.chat.id, f"📜 النص:
-{text}")
+        bot.send_message(message.chat.id, f"📜 النص:\n{text}")
     with open(VIDEO_IDS_FILE, "a", encoding="utf-8") as f:
         f.write(video_id + "\n")
 
