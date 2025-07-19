@@ -3,3 +3,4 @@ telebot
 yt_dlp
 openai-whisper
 ffmpeg-python
+whisper
