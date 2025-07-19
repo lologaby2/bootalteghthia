@@ -10,27 +10,18 @@ VIDEO_IDS_FILE = "video_ids.txt"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# إعداد الملفات
 open(CHANNELS_FILE, "a").close()
 open(VIDEO_IDS_FILE, "a").close()
 os.makedirs("downloads", exist_ok=True)
 
 def extract_username(link):
     try:
-        # إزالة أي بارامترات إضافية مثل ?_t=... أو &_r=...
         clean_link = link.split("?")[0].strip()
-
-        # استخراج الجزء بعد tiktok.com/
         username_part = clean_link.split("tiktok.com/")[1]
-
-        # إزالة الشرطة المائلة الأخيرة إن وجدت
         if username_part.endswith("/"):
             username_part = username_part[:-1]
-
-        # إزالة الـ @ إن وجدت
         if username_part.startswith("@"):
             username_part = username_part[1:]
-
         return username_part
     except Exception:
         return None
@@ -53,7 +44,7 @@ def extract_audio_text(video_path):
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("📄 عرض القنوات المحفوظة", "🎲 فيديو عشوائي")
+    markup.row("📄 عرض القنوات المحفوظة")
     markup.row("📁 عرض الفيديوهات المحفوظة")
     bot.send_message(message.chat.id, "👋 أرسل رابط قناة تيك توك لحفظه أو اختر من الخيارات:", reply_markup=markup)
 
@@ -103,24 +94,33 @@ def handle_random_video(message):
                 video_url = f"https://www.tiktok.com/@{username}/video/{vid}"
                 path, vid_id, duration, views = download_tiktok_video(video_url)
                 if 50 <= duration <= 90 and views >= 1_000_000:
-                    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-                    markup.row("🎧 استخراج النص", "⬇️ تنزيل الفيديو")
+                    # أزرار التحكم تظهر تحت الفيديو
+                    markup = telebot.types.InlineKeyboardMarkup()
+                    markup.add(
+                        telebot.types.InlineKeyboardButton("🎧 استخراج النص", callback_data=f"transcribe|{path}|{vid_id}"),
+                        telebot.types.InlineKeyboardButton("⬇️ تنزيل الفيديو", callback_data=f"download|{path}|{vid_id}")
+                    )
                     bot.send_message(message.chat.id, f"🎥 تم اختيار الفيديو:\n{video_url}", reply_markup=markup)
-                    bot.register_next_step_handler(message, lambda m: handle_action(m, path, vid_id))
                     return
         bot.send_message(message.chat.id, "⚠️ لم أجد فيديو مناسب.")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ حدث خطأ: {e}")
 
-def handle_action(message, video_path, video_id):
-    if message.text == "⬇️ تنزيل الفيديو":
-        with open(video_path, "rb") as f:
-            bot.send_video(message.chat.id, f)
-    elif message.text == "🎧 استخراج النص":
-        text = extract_audio_text(video_path)
-        bot.send_message(message.chat.id, f"📜 النص:\n{text}")
-    with open(VIDEO_IDS_FILE, "a", encoding="utf-8") as f:
-        f.write(video_id + "\n")
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callbacks(call):
+    try:
+        action, path, vid_id = call.data.split("|")
+        if action == "download":
+            with open(path, "rb") as f:
+                bot.send_video(call.message.chat.id, f)
+        elif action == "transcribe":
+            bot.send_message(call.message.chat.id, "🧠 جاري استخراج النص...")
+            text = extract_audio_text(path)
+            bot.send_message(call.message.chat.id, f"📜 النص:\n{text}")
+        with open(VIDEO_IDS_FILE, "a", encoding="utf-8") as f:
+            f.write(vid_id + "\n")
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"❌ خطأ أثناء التنفيذ: {e}")
 
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
