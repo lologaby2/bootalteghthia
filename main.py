@@ -3,17 +3,16 @@ import os
 import requests
 import base64
 
-# بيانات البوت وGitHub
+# بيانات البوت و GitHub
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
 GITHUB_TOKEN = "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"
 REPO_NAME = "lologaby2/bootaltegthia"
 BRANCH = "main"
-FILE_PATH = "storage/tiktok_channels.txt"
+FILE_PATH = "tiktok_channels.txt"  # بدون مجلد
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# إنشاء المجلد والملف إن لم تكن موجودة
-os.makedirs("storage", exist_ok=True)
+# إنشاء الملف إن لم يكن موجودًا
 open(FILE_PATH, "a").close()
 
 # استخراج اسم المستخدم من رابط القناة
@@ -43,7 +42,7 @@ def upload_to_github(file_path):
         data["sha"] = sha
 
     r = requests.put(url, headers={"Authorization": f"Bearer {GITHUB_TOKEN}"}, json=data)
-    print("GitHub Response:", r.status_code, r.text)  # لمعرفة سبب الفشل
+    print("GitHub Response:", r.status_code, r.text)
     return r.status_code == 201 or r.status_code == 200
 
 # رسالة الترحيب
