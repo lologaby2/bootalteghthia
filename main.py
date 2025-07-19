@@ -3,35 +3,30 @@ import os
 import requests
 import base64
 
-# بيانات البوت و GitHub
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
 GITHUB_TOKEN = "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"
 REPO_NAME = "lologaby2/bootaltegthia"
 BRANCH = "main"
-FILE_PATH = "tiktok_channels.txt"  # بدون مجلد
+FILE_PATH = "tiktok_channels.txt"
 
 bot = telebot.TeleBot(BOT_TOKEN)
-
-# إنشاء الملف إن لم يكن موجودًا
 open(FILE_PATH, "a").close()
 
-# استخراج اسم المستخدم من رابط القناة
 def extract_username(link):
     try:
         return link.split("tiktok.com/")[1].split("?")[0].split("/")[0]
     except:
         return None
 
-# رفع الملف إلى GitHub
 def upload_to_github(file_path):
     url = f"https://api.github.com/repos/{REPO_NAME}/contents/{file_path}"
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
     content_b64 = base64.b64encode(content.encode("utf-8")).decode("utf-8")
 
-    # الحصول على SHA الحالي إن وجد
-    r = requests.get(url, headers={"Authorization": f"Bearer {GITHUB_TOKEN}"})
-    sha = r.json().get("sha", "")
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    get_resp = requests.get(url, headers=headers)
+    sha = get_resp.json().get("sha", "")
 
     data = {
         "message": "update tiktok channels",
@@ -41,17 +36,19 @@ def upload_to_github(file_path):
     if sha:
         data["sha"] = sha
 
-    r = requests.put(url, headers={"Authorization": f"Bearer {GITHUB_TOKEN}"}, json=data)
-    print("GitHub Response:", r.status_code, r.text)
-    return r.status_code == 201 or r.status_code == 200
+    put_resp = requests.put(url, headers=headers, json=data)
+    
+    # ✅ طباعة التشخيص في السجل
+    print("GitHub PUT response:", put_resp.status_code)
+    print("Response text:", put_resp.text)
 
-# رسالة الترحيب
+    return put_resp.status_code == 201 or put_resp.status_code == 200
+
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = telebot.types.ReplyKeyboardRemove()
     bot.send_message(message.chat.id, "👋 أرسل رابط قناة تيك توك لحفظه.", reply_markup=markup)
 
-# استقبال الروابط ومعالجتها
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
     full_link = message.text.strip()
@@ -78,7 +75,6 @@ def save_tiktok_channel(message):
     else:
         bot.send_message(message.chat.id, "⚠️ تم حفظ القناة لكن فشل رفعها إلى GitHub.")
 
-# تشغيل البوت
 if __name__ == "__main__":
     print("✅ البوت يعمل...")
     bot.infinity_polling()
