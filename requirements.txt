@@ -1,4 +1,6 @@
 pyTelegramBotAPI==4.14.0
+telebot
 yt_dlp
-whisper
+openai-whisper
 ffmpeg-python
+torch
