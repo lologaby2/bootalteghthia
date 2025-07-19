@@ -17,11 +17,22 @@ os.makedirs("downloads", exist_ok=True)
 
 def extract_username(link):
     try:
-        username = link.split("tiktok.com/")[1].split("?")[0]
-        if username.startswith("@"):
-            return username[1:]  # إزالة @ من البداية
-        return username
-    except:
+        # إزالة أي بارامترات إضافية مثل ?_t=... أو &_r=...
+        clean_link = link.split("?")[0].strip()
+
+        # استخراج الجزء بعد tiktok.com/
+        username_part = clean_link.split("tiktok.com/")[1]
+
+        # إزالة الشرطة المائلة الأخيرة إن وجدت
+        if username_part.endswith("/"):
+            username_part = username_part[:-1]
+
+        # إزالة الـ @ إن وجدت
+        if username_part.startswith("@"):
+            username_part = username_part[1:]
+
+        return username_part
+    except Exception:
         return None
 
 def download_tiktok_video(url):
