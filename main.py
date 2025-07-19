@@ -126,7 +126,7 @@ def handle_action(message, video_path, video_id):
 def save_tiktok_channel(message):
     full_link = message.text.strip()
     new_username = extract_username(full_link)
-    if not new_username or not new_username.startswith("@"):
+    if not new_username:
         bot.send_message(message.chat.id, "❌ لم أتمكن من تحديد اسم القناة.")
         return
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
