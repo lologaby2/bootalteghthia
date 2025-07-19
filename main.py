@@ -6,13 +6,13 @@ import base64
 # بيانات البوت وGitHub
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
 GITHUB_TOKEN = "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"
-REPO_NAME = "lologaby2/bootaltegthia"  # تأكد من اسم المستخدم + اسم المستودع
+REPO_NAME = "lologaby2/bootaltegthia"
 BRANCH = "main"
 FILE_PATH = "storage/tiktok_channels.txt"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# إنشاء المجلد والملف
+# إنشاء المجلد والملف إن لم تكن موجودة
 os.makedirs("storage", exist_ok=True)
 open(FILE_PATH, "a").close()
 
@@ -43,12 +43,14 @@ def upload_to_github(file_path):
         data["sha"] = sha
 
     r = requests.put(url, headers={"Authorization": f"Bearer {GITHUB_TOKEN}"}, json=data)
+    print("GitHub Response:", r.status_code, r.text)  # لمعرفة سبب الفشل
     return r.status_code == 201 or r.status_code == 200
 
 # رسالة الترحيب
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
-    bot.send_message(message.chat.id, "👋 أرسل رابط قناة تيك توك لحفظه.")
+    markup = telebot.types.ReplyKeyboardRemove()
+    bot.send_message(message.chat.id, "👋 أرسل رابط قناة تيك توك لحفظه.", reply_markup=markup)
 
 # استقبال الروابط ومعالجتها
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
