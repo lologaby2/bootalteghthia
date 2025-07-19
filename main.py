@@ -15,12 +15,10 @@ BTN_RANDOM = "🎲 فيديو عشوائي"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# إنشاء الملفات إذا لم تكن موجودة
 open(CHANNELS_FILE, "a").close()
 open(VIDEO_IDS_FILE, "a").close()
 os.makedirs("downloads", exist_ok=True)
 
-# تخزين مؤقت للفيديوهات المختارة
 VIDEO_CACHE = {}
 
 def extract_username(link: str):
@@ -55,7 +53,6 @@ def extract_audio_text(video_path: str):
     result = model.transcribe(video_path)
     return result["text"]
 
-# /start – عرض الواجهة الرئيسية
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -67,7 +64,6 @@ def send_welcome(message):
         reply_markup=markup,
     )
 
-# عرض القنوات المحفوظة
 @bot.message_handler(func=lambda message: message.text == BTN_CHANNELS)
 def list_channels(message):
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
@@ -77,7 +73,6 @@ def list_channels(message):
     else:
         bot.send_message(message.chat.id, "📭 لا توجد قنوات محفوظة.")
 
-# عرض الفيديوهات المحفوظة (video_ids)
 @bot.message_handler(func=lambda message: message.text == BTN_VIDEOIDS)
 def list_videos(message):
     with open(VIDEO_IDS_FILE, "r", encoding="utf-8") as f:
@@ -87,7 +82,6 @@ def list_videos(message):
     else:
         bot.send_message(message.chat.id, "📭 لا توجد فيديوهات محفوظة.")
 
-# اختيار فيديو عشوائي من قناة محفوظة
 @bot.message_handler(func=lambda message: message.text == BTN_RANDOM)
 def handle_random_video(message):
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
@@ -128,7 +122,8 @@ def handle_random_video(message):
                     markup = telebot.types.InlineKeyboardMarkup()
                     markup.add(
                         telebot.types.InlineKeyboardButton("🎧 استخراج النص", callback_data=f"tr|{vid_id}"),
-                        telebot.types.InlineKeyboardButton("⬇️ تنزيل الفيديو", callback_data=f"dl|{vid_id}")
+                        telebot.types.InlineKeyboardButton("⬇️ تنزيل الفيديو", callback_data=f"dl|{vid_id}"),
+                        telebot.types.InlineKeyboardButton("✅ حفظ الفيديو فقط", callback_data=f"save|{vid_id}")
                     )
 
                     bot.send_message(
@@ -142,7 +137,6 @@ def handle_random_video(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ حدث خطأ: {e}")
 
-# التعامل مع أزرار استخراج النص أو تنزيل الفيديو
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
     try:
@@ -158,7 +152,7 @@ def handle_callbacks(call):
         if action == "dl":
             with open(path, "rb") as f:
                 bot.send_video(call.message.chat.id, f)
-            bot.answer_callback_query(call.id)  # بدون حذف الأزرار
+            bot.answer_callback_query(call.id, "✅ تم إرسال الفيديو")
 
         elif action == "tr":
             bot.answer_callback_query(call.id)
@@ -166,14 +160,14 @@ def handle_callbacks(call):
             text = extract_audio_text(path)
             bot.send_message(call.message.chat.id, f"📜 النص:\n{text}")
 
-        # تسجيل الفيديو في قائمة المعالَجين
-        with open(VIDEO_IDS_FILE, "a", encoding="utf-8") as f:
-            f.write(vid_id + "\n")
+        elif action == "save":
+            with open(VIDEO_IDS_FILE, "a", encoding="utf-8") as f:
+                f.write(vid_id + "\n")
+            bot.answer_callback_query(call.id, "✅ تم حفظ الفيديو")
 
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ خطأ أثناء التنفيذ: {e}")
 
-# حفظ قناة تيك توك من رابط
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
     full_link = message.text.strip()
@@ -194,7 +188,6 @@ def save_tiktok_channel(message):
 
     bot.send_message(message.chat.id, "✅ تم حفظ القناة.")
 
-# تشغيل البوت
 if __name__ == "__main__":
     print("✅ البوت يعمل...")
     bot.polling(none_stop=True, interval=0, timeout=60)
