@@ -17,7 +17,10 @@ os.makedirs("downloads", exist_ok=True)
 
 def extract_username(link):
     try:
-        return link.split("tiktok.com/")[1].split("?")[0].split("/")[0]
+        username = link.split("tiktok.com/")[1].split("?")[0]
+        if username.startswith("@"):
+            return username[1:]  # إزالة @ من البداية
+        return username
     except:
         return None
 
