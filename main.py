@@ -1,20 +1,29 @@
-import telebot
 import os
+import random
+import telebot
 import yt_dlp
 import whisper
-import random
 
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
+
 CHANNELS_FILE = "tiktok_channels.txt"
 VIDEO_IDS_FILE = "video_ids.txt"
 
+BTN_CHANNELS = "📄 عرض القنوات المحفوظة"
+BTN_VIDEOIDS = "📁 عرض video_ids"
+BTN_RANDOM = "🎲 فيديو عشوائي"
+
 bot = telebot.TeleBot(BOT_TOKEN)
 
+# إنشاء الملفات إذا لم تكن موجودة
 open(CHANNELS_FILE, "a").close()
 open(VIDEO_IDS_FILE, "a").close()
 os.makedirs("downloads", exist_ok=True)
 
-def extract_username(link):
+# تخزين مؤقت للفيديوهات المختارة
+VIDEO_CACHE = {}
+
+def extract_username(link: str):
     try:
         clean_link = link.split("?")[0].strip()
         username_part = clean_link.split("tiktok.com/")[1]
@@ -26,29 +35,40 @@ def extract_username(link):
     except Exception:
         return None
 
-def download_tiktok_video(url):
+def download_tiktok_video(url: str):
     ydl_opts = {
-        'outtmpl': os.path.join("downloads", '%(id)s.%(ext)s'),
-        'format': 'mp4',
-        'quiet': True,
+        "outtmpl": os.path.join("downloads", "%(id)s.%(ext)s"),
+        "format": "mp4",
+        "quiet": True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        return ydl.prepare_filename(info), info["id"], info.get("duration", 0), info.get("view_count", 0)
+        return (
+            ydl.prepare_filename(info),
+            info["id"],
+            info.get("duration", 0),
+            info.get("view_count", 0),
+        )
 
-def extract_audio_text(video_path):
+def extract_audio_text(video_path: str):
     model = whisper.load_model("base")
     result = model.transcribe(video_path)
-    return result['text']
+    return result["text"]
 
+# /start – عرض الواجهة الرئيسية
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("📄 عرض القنوات المحفوظة", "🎲 فيديو عشوائي")
-markup.row("📁 عرض الفيديوهات المحفوظة")
-    bot.send_message(message.chat.id, "👋 أرسل رابط قناة تيك توك لحفظه أو اختر من الخيارات:", reply_markup=markup)
+    markup.row(BTN_CHANNELS, BTN_RANDOM)
+    markup.row(BTN_VIDEOIDS)
+    bot.send_message(
+        message.chat.id,
+        "👋 أرسل رابط قناة تيك توك لحفظه أو اختر من الخيارات:",
+        reply_markup=markup,
+    )
 
-@bot.message_handler(func=lambda message: message.text == "📄 عرض القنوات المحفوظة")
+# عرض القنوات المحفوظة
+@bot.message_handler(func=lambda message: message.text == BTN_CHANNELS)
 def list_channels(message):
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
         links = f.read().strip()
@@ -57,19 +77,22 @@ def list_channels(message):
     else:
         bot.send_message(message.chat.id, "📭 لا توجد قنوات محفوظة.")
 
-@bot.message_handler(func=lambda message: message.text == "📁 عرض الفيديوهات المحفوظة")
+# عرض الفيديوهات المحفوظة (video_ids)
+@bot.message_handler(func=lambda message: message.text == BTN_VIDEOIDS)
 def list_videos(message):
     with open(VIDEO_IDS_FILE, "r", encoding="utf-8") as f:
         vids = f.read().strip()
     if vids:
-        bot.send_message(message.chat.id, f"🎞️ الفيديوهات:\n\n{vids}")
+        bot.send_message(message.chat.id, f"🎞️ video_ids:\n\n{vids}")
     else:
         bot.send_message(message.chat.id, "📭 لا توجد فيديوهات محفوظة.")
 
-@bot.message_handler(func=lambda message: message.text == "🎲 فيديو عشوائي")
+# اختيار فيديو عشوائي من قناة محفوظة
+@bot.message_handler(func=lambda message: message.text == BTN_RANDOM)
 def handle_random_video(message):
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
-        links = f.read().splitlines()
+        links = [l for l in f.read().splitlines() if l.strip()]
+
     if not links:
         bot.send_message(message.chat.id, "❌ لا توجد قنوات محفوظة.")
         return
@@ -83,45 +106,74 @@ def handle_random_video(message):
     bot.send_message(message.chat.id, f"🔍 يتم فحص قناة: @{username}")
 
     try:
-        ydl_opts = {'quiet': True, 'extract_flat': True}
+        ydl_opts = {"quiet": True, "extract_flat": True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.tiktok.com/@{username}", download=False)
-            entries = info.get('entries', [])
+            entries = info.get("entries", [])
+
+            with open(VIDEO_IDS_FILE, "r", encoding="utf-8") as f:
+                done_ids = set(f.read().splitlines())
+
             for entry in entries:
-                vid = entry['id']
-                if vid in open(VIDEO_IDS_FILE).read():
+                vid = entry["id"]
+                if vid in done_ids:
                     continue
+
                 video_url = f"https://www.tiktok.com/@{username}/video/{vid}"
                 path, vid_id, duration, views = download_tiktok_video(video_url)
+
                 if 50 <= duration <= 90 and views >= 1_000_000:
-                    # أزرار التحكم تظهر تحت الفيديو
+                    VIDEO_CACHE[vid_id] = {"path": path, "url": video_url}
+
                     markup = telebot.types.InlineKeyboardMarkup()
                     markup.add(
-                        telebot.types.InlineKeyboardButton("🎧 استخراج النص", callback_data=f"transcribe|{path}|{vid_id}"),
-                        telebot.types.InlineKeyboardButton("⬇️ تنزيل الفيديو", callback_data=f"download|{path}|{vid_id}")
+                        telebot.types.InlineKeyboardButton("🎧 استخراج النص", callback_data=f"tr|{vid_id}"),
+                        telebot.types.InlineKeyboardButton("⬇️ تنزيل الفيديو", callback_data=f"dl|{vid_id}")
                     )
-                    bot.send_message(message.chat.id, f"🎥 تم اختيار الفيديو:\n{video_url}", reply_markup=markup)
+
+                    bot.send_message(
+                        message.chat.id,
+                        f"🎥 تم اختيار الفيديو:\n{video_url}",
+                        reply_markup=markup,
+                    )
                     return
+
         bot.send_message(message.chat.id, "⚠️ لم أجد فيديو مناسب.")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ حدث خطأ: {e}")
 
+# التعامل مع أزرار استخراج النص أو تنزيل الفيديو
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
     try:
-        action, path, vid_id = call.data.split("|")
-        if action == "download":
+        action, vid_id = call.data.split("|", 1)
+        data = VIDEO_CACHE.get(vid_id)
+
+        if not data:
+            bot.answer_callback_query(call.id, "⚠️ انتهت صلاحية الفيديو. أعد الاختيار.")
+            return
+
+        path = data["path"]
+
+        if action == "dl":
             with open(path, "rb") as f:
                 bot.send_video(call.message.chat.id, f)
-        elif action == "transcribe":
+            bot.answer_callback_query(call.id)  # بدون حذف الأزرار
+
+        elif action == "tr":
+            bot.answer_callback_query(call.id)
             bot.send_message(call.message.chat.id, "🧠 جاري استخراج النص...")
             text = extract_audio_text(path)
             bot.send_message(call.message.chat.id, f"📜 النص:\n{text}")
+
+        # تسجيل الفيديو في قائمة المعالَجين
         with open(VIDEO_IDS_FILE, "a", encoding="utf-8") as f:
             f.write(vid_id + "\n")
+
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ خطأ أثناء التنفيذ: {e}")
 
+# حفظ قناة تيك توك من رابط
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
     full_link = message.text.strip()
@@ -129,15 +181,20 @@ def save_tiktok_channel(message):
     if not new_username:
         bot.send_message(message.chat.id, "❌ لم أتمكن من تحديد اسم القناة.")
         return
+
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
-        saved = [extract_username(l) for l in f.read().splitlines()]
+        saved = [extract_username(l) for l in f.read().splitlines() if l.strip()]
+
     if new_username in saved:
         bot.send_message(message.chat.id, "✅ هذه القناة محفوظة مسبقًا.")
         return
+
     with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
         f.write(full_link + "\n")
+
     bot.send_message(message.chat.id, "✅ تم حفظ القناة.")
 
+# تشغيل البوت
 if __name__ == "__main__":
     print("✅ البوت يعمل...")
-    bot.infinity_polling()
+    bot.polling(none_stop=True, interval=0, timeout=60)
