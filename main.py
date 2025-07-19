@@ -4,7 +4,7 @@ import requests
 import base64
 
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = "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"
 REPO_NAME = "lologaby2/bootaltegthia"
 BRANCH = "main"
 FILE_PATH = "tiktok_channels.txt"
