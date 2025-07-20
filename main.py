@@ -3,6 +3,8 @@ import random
 import telebot
 import yt_dlp
 import whisper
+import threading
+import time
 
 BOT_TOKEN = "8138350200:AAFsaRnzZA_ogAD44TjJ-1MY9YgPvfTwJ2k"
 
@@ -20,6 +22,16 @@ open(VIDEO_IDS_FILE, "a").close()
 os.makedirs("downloads", exist_ok=True)
 
 VIDEO_CACHE = {}
+
+# مؤقت لإيقاف البوت بعد 10 دقائق من عدم النشاط
+last_activity_time = time.time()
+def monitor_inactivity():
+    while True:
+        time.sleep(60)
+        if time.time() - last_activity_time > 600:
+            print("⏹️ لا يوجد نشاط منذ 10 دقائق، يتم إيقاف البوت.")
+            os._exit(0)
+threading.Thread(target=monitor_inactivity, daemon=True).start()
 
 def extract_username(link: str):
     try:
@@ -55,6 +67,8 @@ def extract_audio_text(video_path: str):
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
+    global last_activity_time
+    last_activity_time = time.time()
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(BTN_CHANNELS, BTN_RANDOM)
     markup.row(BTN_VIDEOIDS)
@@ -66,6 +80,8 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda message: message.text == BTN_CHANNELS)
 def list_channels(message):
+    global last_activity_time
+    last_activity_time = time.time()
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
         links = f.read().strip()
     if links:
@@ -75,6 +91,8 @@ def list_channels(message):
 
 @bot.message_handler(func=lambda message: message.text == BTN_VIDEOIDS)
 def list_videos(message):
+    global last_activity_time
+    last_activity_time = time.time()
     with open(VIDEO_IDS_FILE, "r", encoding="utf-8") as f:
         vids = f.read().strip()
     if vids:
@@ -84,6 +102,8 @@ def list_videos(message):
 
 @bot.message_handler(func=lambda message: message.text == BTN_RANDOM)
 def handle_random_video(message):
+    global last_activity_time
+    last_activity_time = time.time()
     with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
         links = [l for l in f.read().splitlines() if l.strip()]
 
@@ -91,54 +111,58 @@ def handle_random_video(message):
         bot.send_message(message.chat.id, "❌ لا توجد قنوات محفوظة.")
         return
 
-    chosen = random.choice(links)
-    username = extract_username(chosen)
-    if not username:
-        bot.send_message(message.chat.id, "❌ تعذر استخراج اسم القناة.")
-        return
+    random.shuffle(links)
 
-    bot.send_message(message.chat.id, f"🔍 يتم فحص قناة: @{username}")
+    with open(VIDEO_IDS_FILE, "r", encoding="utf-8") as f:
+        done_ids = set(f.read().splitlines())
 
-    try:
-        ydl_opts = {"quiet": True, "extract_flat": True}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"https://www.tiktok.com/@{username}", download=False)
-            entries = info.get("entries", [])
+    for chosen in links:
+        username = extract_username(chosen)
+        if not username:
+            continue
 
-            with open(VIDEO_IDS_FILE, "r", encoding="utf-8") as f:
-                done_ids = set(f.read().splitlines())
+        bot.send_message(message.chat.id, f"🔍 يتم فحص قناة: @{username}")
 
-            for entry in entries:
-                vid = entry["id"]
-                if vid in done_ids:
-                    continue
+        try:
+            ydl_opts = {"quiet": True, "extract_flat": True}
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.tiktok.com/@{username}", download=False)
+                entries = info.get("entries", [])
 
-                video_url = f"https://www.tiktok.com/@{username}/video/{vid}"
-                path, vid_id, duration, views = download_tiktok_video(video_url)
+                for entry in entries:
+                    vid = entry["id"]
+                    if vid in done_ids:
+                        continue
 
-                if 50 <= duration <= 90 and views >= 1_000_000:
-                    VIDEO_CACHE[vid_id] = {"path": path, "url": video_url}
+                    video_url = f"https://www.tiktok.com/@{username}/video/{vid}"
+                    path, vid_id, duration, views = download_tiktok_video(video_url)
 
-                    markup = telebot.types.InlineKeyboardMarkup()
-                    markup.add(
-                        telebot.types.InlineKeyboardButton("🎧 استخراج النص", callback_data=f"tr|{vid_id}"),
-                        telebot.types.InlineKeyboardButton("⬇️ تنزيل الفيديو", callback_data=f"dl|{vid_id}"),
-                        telebot.types.InlineKeyboardButton("✅ حفظ الفيديو فقط", callback_data=f"save|{vid_id}")
-                    )
+                    if 50 <= duration <= 90 and views >= 1_000_000:
+                        VIDEO_CACHE[vid_id] = {"path": path, "url": video_url}
 
-                    bot.send_message(
-                        message.chat.id,
-                        f"🎥 تم اختيار الفيديو:\n{video_url}",
-                        reply_markup=markup,
-                    )
-                    return
+                        markup = telebot.types.InlineKeyboardMarkup()
+                        markup.add(
+                            telebot.types.InlineKeyboardButton("🎧 استخراج النص", callback_data=f"tr|{vid_id}"),
+                            telebot.types.InlineKeyboardButton("⬇️ تنزيل الفيديو", callback_data=f"dl|{vid_id}"),
+                            telebot.types.InlineKeyboardButton("✅ حفظ الفيديو فقط", callback_data=f"save|{vid_id}")
+                        )
 
-        bot.send_message(message.chat.id, "⚠️ لم أجد فيديو مناسب.")
-    except Exception as e:
-        bot.send_message(message.chat.id, f"❌ حدث خطأ: {e}")
+                        bot.send_message(
+                            message.chat.id,
+                            f"🎥 تم اختيار الفيديو:\n{video_url}",
+                            reply_markup=markup,
+                        )
+                        return
+
+        except Exception:
+            continue
+
+    bot.send_message(message.chat.id, "⚠️ لم أجد أي فيديو مناسب في كل القنوات.")
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
+    global last_activity_time
+    last_activity_time = time.time()
     try:
         action, vid_id = call.data.split("|", 1)
         data = VIDEO_CACHE.get(vid_id)
@@ -170,6 +194,8 @@ def handle_callbacks(call):
 
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
+    global last_activity_time
+    last_activity_time = time.time()
     full_link = message.text.strip()
     new_username = extract_username(full_link)
     if not new_username:
