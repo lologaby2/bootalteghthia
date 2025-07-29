@@ -74,9 +74,31 @@ def send_welcome(message):
     markup.row(BTN_VIDEOIDS)
     bot.send_message(
         message.chat.id,
-        "👋 أرسل رابط قناة تيك توك لحفظه أو اختر من الخيارات:",
+        "👋 أرسل رابط قناة تيك توك لحفظه أو رابط فيديو لاستخراج النص، أو اختر من الخيارات:",
         reply_markup=markup,
     )
+
+# ✅ معالجة رابط فيديو: إرسال الفيديو + استخراج النص
+@bot.message_handler(func=lambda message: "tiktok.com/" in message.text and "/video/" in message.text)
+def handle_direct_video(message):
+    global last_activity_time
+    last_activity_time = time.time()
+
+    video_url = message.text.strip()
+    bot.send_message(message.chat.id, "⏬ جاري تنزيل الفيديو...")
+
+    try:
+        path, vid_id, duration, views = download_tiktok_video(video_url)
+
+        with open(path, "rb") as f:
+            bot.send_video(message.chat.id, f)
+
+        bot.send_message(message.chat.id, "🧠 جاري استخراج النص من الصوت...")
+        text = extract_audio_text(path)
+        bot.send_message(message.chat.id, f"📜 النص:\n{text}")
+
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ حدث خطأ أثناء المعالجة:\n{e}")
 
 @bot.message_handler(func=lambda message: message.text == BTN_CHANNELS)
 def list_channels(message):
@@ -192,22 +214,7 @@ def handle_callbacks(call):
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ خطأ أثناء التنفيذ: {e}")
 
-@bot.message_handler(func=lambda message: "tiktok.com/" in message.text and "/video/" in message.text)
-def handle_direct_video(message):
-    global last_activity_time
-    last_activity_time = time.time()
-
-    video_url = message.text.strip()
-    bot.send_message(message.chat.id, "⏬ جاري تنزيل الفيديو...")
-
-    try:
-        path, vid_id, duration, views = download_tiktok_video(video_url)
-        bot.send_message(message.chat.id, "🧠 جاري استخراج النص من الصوت...")
-        text = extract_audio_text(path)
-        bot.send_message(message.chat.id, f"📜 النص:\n{text}")
-    except Exception as e:
-        bot.send_message(message.chat.id, f"❌ حدث خطأ أثناء المعالجة:\n{e}")
-
+# ✅ حفظ روابط القنوات فقط
 @bot.message_handler(func=lambda message: "tiktok.com/" in message.text)
 def save_tiktok_channel(message):
     global last_activity_time
