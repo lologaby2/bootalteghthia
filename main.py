@@ -137,7 +137,7 @@ def handle_random_video(message):
                     video_url = f"https://www.tiktok.com/@{username}/video/{vid}"
                     path, vid_id, duration, views = download_tiktok_video(video_url)
 
-                    if 80 <= duration <= 150 and views >= 1_000_000:
+                    if 50 <= duration <= 90 and views >= 1_000_000:
                         VIDEO_CACHE[vid_id] = {"path": path, "url": video_url}
 
                         markup = telebot.types.InlineKeyboardMarkup()
